@@ -1,0 +1,23 @@
+
+import pandas as pd
+from sklearn.linear_model import LogisticRegression
+data = {
+    'Offer': [3, 2, 1, 3, 0],
+    'Win': [2, 1, 0, 3, 1],
+    'Spam': [1, 1, 0, 1, 0]
+}
+df = pd.DataFrame(data)
+X = df[['Offer', 'Win']]
+y = df['Spam']
+model = LogisticRegression()
+model.fit(X, y)
+print("Intercept:", model.intercept_[0])
+print("Offer Coefficient:", model.coef_[0][0])
+print("Win Coefficient:", model.coef_[0][1])
+new_email = [[2, 1]]
+prediction = model.predict(new_email)
+print("Prediction:", prediction[0])
+if prediction[0] == 1:
+    print("Spam Email")
+else:
+    print("Not Spam")
