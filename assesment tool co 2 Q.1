@@ -1,0 +1,19 @@
+
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+data = {
+    'Area': [1000, 1500, 800, 1200, 2000],
+    'Bedrooms': [2, 3, 2, 3, 4],
+    'Price': [50, 75, 40, 60, 90]
+}
+df = pd.DataFrame(data)
+X = df[['Area', 'Bedrooms']]
+y = df['Price']
+model = LinearRegression()
+model.fit(X, y)
+print("Intercept (β0):", model.intercept_)
+print("Area Coefficient (β1):", model.coef_[0])
+print("Bedroom Coefficient (β2):", model.coef_[1])
+new_house = [[1800, 3]]
+prediction = model.predict(new_house)
+print("Predicted Price:", prediction[0], "Lakhs")
