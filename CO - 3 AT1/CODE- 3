@@ -1,0 +1,241 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.datasets import load_wine
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.decomposition import FactorAnalysis
+from sklearn.decomposition import FastICA
+
+wine = load_wine()
+
+X = wine.data
+y = wine.target
+
+feature_names = wine.feature_names
+
+print("Wine dataset loaded successfully!")
+
+print("\nDataset shape:")
+print(X.shape)
+
+print("\nFeature names:")
+print(feature_names)
+
+print("\nFirst 5 rows:")
+display(pd.DataFrame(X, columns=feature_names).head())
+
+print("\nTarget classes:")
+print(np.unique(y))
+
+scaler = StandardScaler()
+
+X_scaled = scaler.fit_transform(X)
+
+print("\nData standardized successfully!")
+
+print("\nScaled data:")
+display(pd.DataFrame(X_scaled, columns=feature_names).head())
+
+pca = PCA(n_components=2)
+
+X_pca = pca.fit_transform(X_scaled)
+
+print("\nPCA completed successfully!")
+
+print("\nPCA Explained Variance Ratio:")
+print(pca.explained_variance_ratio_)
+
+print("\nTotal PCA Variance Explained:")
+print(
+    round(
+        pca.explained_variance_ratio_.sum() * 100,
+        2
+    ),
+    "%"
+)
+
+pca_df = pd.DataFrame(
+    X_pca,
+    columns=['PC1', 'PC2']
+)
+
+pca_df['Class'] = y
+
+print("\nPCA Output:")
+display(pca_df.head())
+
+fa = FactorAnalysis(
+    n_components=2,
+    random_state=42
+)
+
+X_fa = fa.fit_transform(X_scaled)
+
+print("\nFactor Analysis completed successfully!")
+
+fa_df = pd.DataFrame(
+    X_fa,
+    columns=['Factor1', 'Factor2']
+)
+
+fa_df['Class'] = y
+
+print("\nFactor Analysis Output:")
+display(fa_df.head())
+
+ica = FastICA(
+    n_components=2,
+    random_state=42,
+    max_iter=1000
+)
+
+X_ica = ica.fit_transform(X_scaled)
+
+print("\nIndependent Component Analysis completed successfully!")
+
+ica_df = pd.DataFrame(
+    X_ica,
+    columns=['IC1', 'IC2']
+)
+
+ica_df['Class'] = y
+
+print("\nICA Output:")
+display(ica_df.head())
+
+plt.figure(figsize=(9, 6))
+
+scatter = plt.scatter(
+    pca_df['PC1'],
+    pca_df['PC2'],
+    c=pca_df['Class'],
+    cmap='viridis',
+    s=50,
+    alpha=0.8
+)
+
+plt.xlabel("Principal Component 1")
+plt.ylabel("Principal Component 2")
+plt.title("Wine Dataset - PCA")
+
+plt.colorbar(
+    scatter,
+    label="Wine Class"
+)
+
+plt.grid(True)
+
+plt.show()
+
+plt.figure(figsize=(9, 6))
+
+scatter = plt.scatter(
+    fa_df['Factor1'],
+    fa_df['Factor2'],
+    c=fa_df['Class'],
+    cmap='viridis',
+    s=50,
+    alpha=0.8
+)
+
+plt.xlabel("Factor 1")
+plt.ylabel("Factor 2")
+plt.title("Wine Dataset - Factor Analysis")
+
+plt.colorbar(
+    scatter,
+    label="Wine Class"
+)
+
+plt.grid(True)
+
+plt.show()
+
+plt.figure(figsize=(9, 6))
+
+scatter = plt.scatter(
+    ica_df['IC1'],
+    ica_df['IC2'],
+    c=ica_df['Class'],
+    cmap='viridis',
+    s=50,
+    alpha=0.8
+)
+
+plt.xlabel("Independent Component 1")
+plt.ylabel("Independent Component 2")
+plt.title("Wine Dataset - Independent Component Analysis")
+
+plt.colorbar(
+    scatter,
+    label="Wine Class"
+)
+
+plt.grid(True)
+
+plt.show()
+
+print("\n==========================================")
+print("COMPONENT ANALYSIS")
+print("==========================================")
+
+print("\nOriginal Number of Features:")
+print(X.shape[1])
+
+print("\nPCA Components:")
+print(pca.components_)
+
+print("\nPCA Explained Variance:")
+print(pca.explained_variance_)
+
+print("\nPCA Explained Variance Ratio:")
+print(pca.explained_variance_ratio_)
+
+print("\nFactor Analysis Components:")
+print(fa.components_)
+
+print("\nICA Components:")
+print(ica.components_)
+
+comparison = pd.DataFrame({
+    'Method': [
+        'PCA',
+        'Factor Analysis',
+        'ICA'
+    ],
+    'Original Features': [
+        X.shape[1],
+        X.shape[1],
+        X.shape[1]
+    ],
+    'Reduced Dimensions': [
+        X_pca.shape[1],
+        X_fa.shape[1],
+        X_ica.shape[1]
+    ]
+})
+
+print("\nDimensionality Reduction Comparison:")
+display(comparison)
+
+print("\n==========================================")
+print("FINAL SUMMARY")
+print("==========================================")
+
+print("Original dimensions:", X.shape[1])
+
+print("PCA dimensions:", X_pca.shape[1])
+
+print("Factor Analysis dimensions:", X_fa.shape[1])
+
+print("ICA dimensions:", X_ica.shape[1])
+
+print(
+    "\nPCA retained",
+    round(pca.explained_variance_ratio_.sum() * 100, 2),
+    "% of the total variance."
+)
+
+print("\nPCA, Factor Analysis and ICA completed successfully!")
