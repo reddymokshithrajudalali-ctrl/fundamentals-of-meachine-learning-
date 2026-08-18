@@ -1,0 +1,29 @@
+import numpy as np
+
+image = np.array([
+    [100, 120, 110],
+    [105, 250, 115],
+    [98, 112, 108]
+])
+
+print("Original Image:")
+print(image)
+
+new_image = image.copy()
+
+rows, cols = image.shape
+
+for i in range(1, rows - 1):
+    for j in range(1, cols - 1):
+
+        neighbors = [
+            image[i-1, j],
+            image[i+1, j],
+            image[i, j-1],
+            image[i, j+1]
+        ]
+
+        new_image[i, j] = int(sum(neighbors) / len(neighbors))
+
+print("\nUpdated Image After One Iteration of Smoothing:")
+print(new_image)
