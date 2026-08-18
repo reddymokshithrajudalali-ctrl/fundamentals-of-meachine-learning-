@@ -1,0 +1,67 @@
+!pip install sklearn-crfsuite
+
+import sklearn_crfsuite
+
+train_sentences = [
+    [
+        ("Rahul", "NAME"),
+        ("ordered", "O"),
+        ("Laptop", "PRODUCT"),
+        ("with", "O"),
+        ("Order123", "ORDER_ID")
+    ],
+    [
+        ("Priya", "NAME"),
+        ("purchased", "O"),
+        ("Mobile", "PRODUCT"),
+        ("using", "O"),
+        ("Order456", "ORDER_ID")
+    ]
+]
+
+def word2features(sent, i):
+    word = sent[i][0]
+
+    features = {
+        'word.lower()': word.lower(),
+        'word.isupper()': word.isupper(),
+        'word.istitle()': word.istitle(),
+        'word.isdigit()': word.isdigit(),
+    }
+
+    return features
+
+X_train = []
+y_train = []
+
+for sent in train_sentences:
+    X_train.append([word2features(sent, i) for i in range(len(sent))])
+    y_train.append([label for word, label in sent])
+
+crf = sklearn_crfsuite.CRF(
+    algorithm='lbfgs',
+    max_iterations=100
+)
+
+crf.fit(X_train, y_train)
+
+test_sentence = ["Rahul", "purchased", "Laptop", "with", "Order789"]
+
+X_test = [[
+    {
+        'word.lower()': word.lower(),
+        'word.isupper()': word.isupper(),
+        'word.istitle()': word.istitle(),
+        'word.isdigit()': word.isdigit(),
+    }
+    for word in test_sentence
+]]
+
+prediction = crf.predict(X_test)
+
+print("Sentence:")
+print(test_sentence)
+
+print("\nPredicted Labels:")
+for word, label in zip(test_sentence, prediction[0]):
+    print(word, "->", label)
