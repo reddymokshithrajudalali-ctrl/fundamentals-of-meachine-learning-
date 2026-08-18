@@ -1,0 +1,47 @@
+!pip install pgmpy
+
+from pgmpy.models import DiscreteBayesianNetwork
+from pgmpy.factors.discrete import TabularCPD
+from pgmpy.inference import VariableElimination
+
+model = DiscreteBayesianNetwork([
+    ('Age', 'InsuranceClaim'),
+    ('Income', 'InsuranceClaim'),
+    ('VehicleType', 'InsuranceClaim')
+])
+
+cpd_age = TabularCPD('Age', 2, [[0.6], [0.4]])
+cpd_income = TabularCPD('Income', 2, [[0.5], [0.5]])
+cpd_vehicle = TabularCPD('VehicleType', 2, [[0.7], [0.3]])
+
+cpd_claim = TabularCPD(
+    variable='InsuranceClaim',
+    variable_card=2,
+    values=[
+        [0.9,0.7,0.6,0.4,0.5,0.3,0.2,0.1],
+        [0.1,0.3,0.4,0.6,0.5,0.7,0.8,0.9]
+    ],
+    evidence=['Age','Income','VehicleType'],
+    evidence_card=[2,2,2]
+)
+
+model.add_cpds(cpd_age, cpd_income, cpd_vehicle, cpd_claim)
+
+infer = VariableElimination(model)
+
+result = infer.query(
+    variables=['InsuranceClaim'],
+    evidence={
+        'Age':1,
+        'Income':1,
+        'VehicleType':1
+    }
+)
+
+print("Learned Network Structure:")
+print(model.edges())
+
+print("\nPrediction Result:")
+print(result)
+
+print("\nProbability of Insurance Claim =", result.values[1])
