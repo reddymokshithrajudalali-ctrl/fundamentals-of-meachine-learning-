@@ -1,0 +1,126 @@
+!pip install pgmpy -q
+
+from pgmpy.models import DiscreteBayesianNetwork
+from pgmpy.factors.discrete import TabularCPD
+from pgmpy.inference import VariableElimination
+
+model = DiscreteBayesianNetwork([
+    ('TransactionAmount', 'Fraud'),
+    ('TransactionLocation', 'Fraud'),
+    ('LoginDevice', 'Fraud'),
+    ('PreviousFraud', 'Fraud')
+])
+
+cpd_amount = TabularCPD(
+    variable='TransactionAmount',
+    variable_card=2,
+    values=[
+        [0.70],
+        [0.30]
+    ],
+    state_names={'TransactionAmount': ['Low', 'High']}
+)
+
+cpd_location = TabularCPD(
+    variable='TransactionLocation',
+    variable_card=2,
+    values=[
+        [0.80],
+        [0.20]
+    ],
+    state_names={'TransactionLocation': ['Known', 'Unknown']}
+)
+
+cpd_device = TabularCPD(
+    variable='LoginDevice',
+    variable_card=2,
+    values=[
+        [0.75],
+        [0.25]
+    ],
+    state_names={'LoginDevice': ['Trusted', 'Untrusted']}
+)
+
+cpd_previous_fraud = TabularCPD(
+    variable='PreviousFraud',
+    variable_card=2,
+    values=[
+        [0.85],
+        [0.15]
+    ],
+    state_names={'PreviousFraud': ['No', 'Yes']}
+)
+
+cpd_fraud = TabularCPD(
+    variable='Fraud',
+    variable_card=2,
+    values=[
+        [0.99, 0.90, 0.95, 0.75, 0.92, 0.70, 0.80, 0.40,
+         0.85, 0.65, 0.75, 0.30, 0.70, 0.45, 0.55, 0.10],
+        [0.01, 0.10, 0.05, 0.25, 0.08, 0.30, 0.20, 0.60,
+         0.15, 0.35, 0.25, 0.70, 0.30, 0.55, 0.45, 0.90]
+    ],
+    evidence=[
+        'TransactionAmount',
+        'TransactionLocation',
+        'LoginDevice',
+        'PreviousFraud'
+    ],
+    evidence_card=[2, 2, 2, 2],
+    state_names={
+        'Fraud': ['No', 'Yes'],
+        'TransactionAmount': ['Low', 'High'],
+        'TransactionLocation': ['Known', 'Unknown'],
+        'LoginDevice': ['Trusted', 'Untrusted'],
+        'PreviousFraud': ['No', 'Yes']
+    }
+)
+
+model.add_cpds(
+    cpd_amount,
+    cpd_location,
+    cpd_device,
+    cpd_previous_fraud,
+    cpd_fraud
+)
+
+print("Bayesian Network Structure:")
+print(model.edges())
+
+print("\nModel Validity:")
+print(model.check_model())
+
+inference = VariableElimination(model)
+
+evidence = {
+    'TransactionAmount': 'High',
+    'TransactionLocation': 'Unknown',
+    'LoginDevice': 'Untrusted',
+    'PreviousFraud': 'Yes'
+}
+
+result = inference.query(
+    variables=['Fraud'],
+    evidence=evidence
+)
+
+print("\nTransaction Details:")
+print("Transaction Amount :", evidence['TransactionAmount'])
+print("Transaction Location :", evidence['TransactionLocation'])
+print("Login Device :", evidence['LoginDevice'])
+print("Previous Fraud History :", evidence['PreviousFraud'])
+
+print("\nFraud Probability:")
+print(result)
+
+fraud_probability = result.values[1]
+
+print("\nFinal Prediction:")
+
+if fraud_probability >= 0.50:
+    print("Transaction is predicted as FRAUDULENT.")
+else:
+    print("Transaction is predicted as LEGITIMATE.")
+
+print("Probability of Fraud:", round(fraud_probability * 100, 2), "%")
+print("Probability of Legitimate Transaction:", round((1 - fraud_probability) * 100, 2), "%")
