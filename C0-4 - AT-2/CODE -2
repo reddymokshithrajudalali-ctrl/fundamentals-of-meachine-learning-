@@ -1,0 +1,107 @@
+!pip install hmmlearn -q
+
+import numpy as np
+from hmmlearn import hmm
+
+states = ['Healthy', 'Warning', 'Failure']
+
+observations = [
+    [0, 0, 0],
+    [0, 1, 0],
+    [1, 1, 1],
+    [1, 2, 1],
+    [2, 2, 2],
+    [2, 2, 2]
+]
+
+model = hmm.CategoricalHMM(
+    n_components=3,
+    random_state=42
+)
+
+model.startprob_ = np.array([
+    0.70,
+    0.25,
+    0.05
+])
+
+model.transmat_ = np.array([
+    [0.80, 0.18, 0.02],
+    [0.10, 0.75, 0.15],
+    [0.02, 0.18, 0.80]
+])
+
+model.emissionprob_ = np.array([
+    [0.80, 0.15, 0.05],
+    [0.15, 0.70, 0.15],
+    [0.05, 0.15, 0.80]
+])
+
+temperature = [0, 1, 2]
+vibration = [0, 1, 2]
+motor_noise = [0, 1, 2]
+
+sensor_data = np.array([
+    [temperature[i], vibration[i], motor_noise[i]]
+    for i in range(len(temperature))
+])
+
+observation_symbols = []
+
+for row in sensor_data:
+    average_value = round(np.mean(row))
+    observation_symbols.append([average_value])
+
+observation_sequence = np.array(observation_symbols)
+
+log_probability, hidden_states = model.decode(
+    observation_sequence,
+    algorithm="viterbi"
+)
+
+print("Hidden States:")
+print(states)
+
+print("\nTransition Probability Matrix:")
+print(model.transmat_)
+
+print("\nEmission Probability Matrix:")
+print(model.emissionprob_)
+
+print("\nSensor Observations:")
+for i in range(len(sensor_data)):
+    print(
+        "Time", i + 1,
+        "Temperature:", sensor_data[i][0],
+        "Vibration:", sensor_data[i][1],
+        "Motor Noise:", sensor_data[i][2]
+    )
+
+print("\nPredicted Machine States:")
+
+for i, state in enumerate(hidden_states):
+    print(
+        "Time", i + 1,
+        "->",
+        states[state]
+    )
+
+print("\nLog Probability:", log_probability)
+
+failure_count = 0
+warning_count = 0
+
+for state in hidden_states:
+    if states[state] == 'Failure':
+        failure_count += 1
+    elif states[state] == 'Warning':
+        warning_count += 1
+
+print("\nMaintenance Recommendation:")
+
+if failure_count > 0:
+    print("URGENT: Machine shows Failure condition. Immediate maintenance is required.")
+elif warning_count > 0:
+    print("WARNING: Machine shows Warning condition. Schedule preventive maintenance.")
+else:
+    print("Machine is Healthy. Continue normal monitoring.")
