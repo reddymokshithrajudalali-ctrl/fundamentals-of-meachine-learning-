@@ -1,0 +1,244 @@
+!pip install sklearn-crfsuite -q
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
+import sklearn_crfsuite
+from sklearn_crfsuite import metrics
+
+np.random.seed(42)
+
+activities = ["Driving", "Braking", "Turning", "Stopping"]
+
+features = {
+    "Driving":  [0.8, 0.2, 0.1],
+    "Braking":  [0.2, 0.8, 0.1],
+    "Turning":  [0.5, 0.2, 0.8],
+    "Stopping": [0.1, 0.1, 0.1]
+}
+
+sequences = []
+labels = []
+
+for i in range(40):
+    seq = []
+    lab = []
+
+    current = np.random.choice(activities)
+
+    for t in range(30):
+        if np.random.rand() < 0.25:
+            current = np.random.choice(activities)
+
+        x = np.array(features[current]) + np.random.normal(0, 0.12, 3)
+
+        seq.append(x)
+        lab.append(current)
+
+    sequences.append(np.array(seq))
+    labels.append(lab)
+
+train_sequences = sequences[:30]
+train_labels = labels[:30]
+
+test_sequences = sequences[30:]
+test_labels = labels[30:]
+
+train_X = np.vstack(train_sequences)
+train_y = np.concatenate(train_labels)
+
+mean = {}
+std = {}
+
+for activity in activities:
+    data = train_X[train_y == activity]
+    mean[activity] = np.mean(data, axis=0)
+    std[activity] = np.std(data, axis=0) + 0.01
+
+transition = np.ones((4, 4))
+
+activity_index = {a:i for i, a in enumerate(activities)}
+
+for sequence in train_labels:
+    for i in range(len(sequence)-1):
+        a = activity_index[sequence[i]]
+        b = activity_index[sequence[i+1]]
+        transition[a][b] += 1
+
+transition = transition / transition.sum(axis=1, keepdims=True)
+
+initial = np.ones(4)
+
+for sequence in train_labels:
+    initial[activity_index[sequence[0]]] += 1
+
+initial = initial / initial.sum()
+
+def emission_probability(x, activity):
+    m = mean[activity]
+    s = std[activity]
+    probability = np.exp(-0.5 * ((x-m)/s)**2) / (s*np.sqrt(2*np.pi))
+    return np.sum(np.log(probability + 1e-10))
+
+def hmm_predict(sequence):
+    n = len(sequence)
+    k = len(activities)
+
+    dp = np.zeros((n, k))
+    path = np.zeros((n, k), dtype=int)
+
+    for j in range(k):
+        dp[0, j] = np.log(initial[j]) + emission_probability(
+            sequence[0],
+            activities[j]
+        )
+
+    for t in range(1, n):
+        for j in range(k):
+            values = []
+
+            for i in range(k):
+                value = (
+                    dp[t-1, i]
+                    + np.log(transition[i, j])
+                    + emission_probability(sequence[t], activities[j])
+                )
+                values.append(value)
+
+            path[t, j] = np.argmax(values)
+            dp[t, j] = max(values)
+
+    states = [np.argmax(dp[-1])]
+
+    for t in range(n-1, 0, -1):
+        states.append(path[t, states[-1]])
+
+    states.reverse()
+
+    return [activities[i] for i in states]
+
+hmm_predictions = []
+hmm_actual = []
+
+for sequence, true_labels in zip(test_sequences, test_labels):
+    prediction = hmm_predict(sequence)
+    hmm_predictions.extend(prediction)
+    hmm_actual.extend(true_labels)
+
+hmm_accuracy = accuracy_score(
+    hmm_actual,
+    hmm_predictions
+)
+
+print("HMM Accuracy:", round(hmm_accuracy * 100, 2), "%")
+
+def create_features(sequence):
+    result = []
+
+    for i, x in enumerate(sequence):
+
+        f = {
+            "sensor_1": round(float(x[0]), 3),
+            "sensor_2": round(float(x[1]), 3),
+            "sensor_3": round(float(x[2]), 3),
+            "sensor1_sensor2": round(float(x[0] * x[1]), 3),
+            "sensor2_sensor3": round(float(x[1] * x[2]), 3)
+        }
+
+        if i == 0:
+            f["previous"] = "START"
+        else:
+            f["previous_sensor1"] = round(float(sequence[i-1][0]), 3)
+            f["previous_sensor2"] = round(float(sequence[i-1][1]), 3)
+            f["previous_sensor3"] = round(float(sequence[i-1][2]), 3)
+
+        if i == len(sequence)-1:
+            f["next"] = "END"
+        else:
+            f["next_sensor1"] = round(float(sequence[i+1][0]), 3)
+            f["next_sensor2"] = round(float(sequence[i+1][1]), 3)
+            f["next_sensor3"] = round(float(sequence[i+1][2]), 3)
+
+        result.append(f)
+
+    return result
+
+X_train = [create_features(x) for x in train_sequences]
+y_train = train_labels
+
+X_test = [create_features(x) for x in test_sequences]
+y_test = test_labels
+
+crf = sklearn_crfsuite.CRF(
+    algorithm="lbfgs",
+    c1=0.1,
+    c2=0.1,
+    max_iterations=100,
+    all_possible_transitions=True
+)
+
+crf.fit(X_train, y_train)
+
+crf_predictions = crf.predict(X_test)
+
+crf_actual = np.concatenate(y_test)
+crf_predicted = np.concatenate(crf_predictions)
+
+crf_accuracy = accuracy_score(
+    crf_actual,
+    crf_predicted
+)
+
+print("CRF Accuracy:", round(crf_accuracy * 100, 2), "%")
+
+comparison = pd.DataFrame({
+    "Model": ["HMM", "CRF"],
+    "Accuracy": [
+        round(hmm_accuracy * 100, 2),
+        round(crf_accuracy * 100, 2)
+    ]
+})
+
+display(comparison)
+
+plt.figure(figsize=(7,5))
+
+plt.bar(
+    comparison["Model"],
+    comparison["Accuracy"]
+)
+
+plt.xlabel("Model")
+plt.ylabel("Accuracy (%)")
+plt.title("HMM vs CRF Accuracy")
+plt.ylim(0, 100)
+
+plt.show()
+
+cm = confusion_matrix(
+    crf_actual,
+    crf_predicted,
+    labels=activities
+)
+
+disp = ConfusionMatrixDisplay(
+    confusion_matrix=cm,
+    display_labels=activities
+)
+
+disp.plot(
+    figsize=(7,5),
+    xticks_rotation=45
+)
+
+plt.title("CRF Activity Recognition Confusion Matrix")
+plt.show()
+
+print("HMM Accuracy:", round(hmm_accuracy * 100, 2), "%")
+print("CRF Accuracy:", round(crf_accuracy * 100, 2), "%")
+
+if crf_accuracy > hmm_accuracy:
+    print("CRF is more suitable for autonomous vehicle activity recognition.")
+else:
+    print("HMM is more suitable for this dataset.")
