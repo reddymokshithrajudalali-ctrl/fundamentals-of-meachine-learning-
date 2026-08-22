@@ -1,0 +1,102 @@
+!pip install pgmpy networkx matplotlib pandas -q
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import networkx as nx
+from pgmpy.models import DiscreteBayesianNetwork
+from pgmpy.factors.discrete import TabularCPD
+from pgmpy.inference import VariableElimination
+
+bn = DiscreteBayesianNetwork([
+    ("Diabetes","Fatigue"),
+    ("HeartDisease","Fatigue"),
+    ("Flu","Fever"),
+    ("Flu","Cough"),
+    ("Flu","Fatigue")
+])
+
+G = nx.DiGraph()
+G.add_edges_from([
+    ("Diabetes","Fatigue"),
+    ("HeartDisease","Fatigue"),
+    ("Flu","Fever"),
+    ("Flu","Cough"),
+    ("Flu","Fatigue")
+])
+
+plt.figure(figsize=(8,5))
+pos = nx.spring_layout(G, seed=42)
+nx.draw_networkx(G, pos, node_size=2500)
+plt.title("Bayesian Network")
+plt.axis("off")
+plt.show()
+
+cpd_diabetes = TabularCPD("Diabetes",2,[[0.7],[0.3]])
+cpd_heart = TabularCPD("HeartDisease",2,[[0.8],[0.2]])
+cpd_flu = TabularCPD("Flu",2,[[0.6],[0.4]])
+
+cpd_fatigue = TabularCPD(
+    variable="Fatigue",
+    variable_card=2,
+    values=[
+        [0.9,0.6,0.7,0.3,0.8,0.5,0.6,0.2],
+        [0.1,0.4,0.3,0.7,0.2,0.5,0.4,0.8]
+    ],
+    evidence=["Diabetes","HeartDisease","Flu"],
+    evidence_card=[2,2,2]
+)
+
+cpd_fever = TabularCPD(
+    variable="Fever",
+    variable_card=2,
+    values=[[0.95,0.2],[0.05,0.8]],
+    evidence=["Flu"],
+    evidence_card=[2]
+)
+
+cpd_cough = TabularCPD(
+    variable="Cough",
+    variable_card=2,
+    values=[[0.9,0.3],[0.1,0.7]],
+    evidence=["Flu"],
+    evidence_card=[2]
+)
+
+bn.add_cpds(
+    cpd_diabetes,
+    cpd_heart,
+    cpd_flu,
+    cpd_fatigue,
+    cpd_fever,
+    cpd_cough
+)
+
+print("Model Valid:", bn.check_model())
+
+infer = VariableElimination(bn)
+
+result = infer.query(
+    variables=["Flu"],
+    evidence={"Fever":1,"Cough":1}
+)
+
+print(result)
+
+mrf = nx.Graph()
+
+mrf.add_edges_from([
+    ("Fever","Flu"),
+    ("Cough","Flu"),
+    ("Fatigue","Flu"),
+    ("Fatigue","Diabetes"),
+    ("Fatigue","HeartDisease")
+])
+
+plt.figure(figsize=(8,5))
+pos = nx.spring_layout(mrf, seed=42)
+nx.draw_networkx(mrf, pos, node_size=2500)
+plt.title("Markov Random Field")
+plt.axis("off")
+plt.show()
+
+print("Bayesian Network is more suitable for disease diagnosis.")
