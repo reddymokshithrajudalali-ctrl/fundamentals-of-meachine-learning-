@@ -1,0 +1,292 @@
+import numpy as np
+import random
+import matplotlib.pyplot as plt
+
+grid_size = 6
+
+start = (0, 0)
+goal = (5, 5)
+
+obstacles = {
+    (0, 2), (1, 2), (2, 2),
+    (3, 4), (4, 4)
+}
+
+actions = {
+    "Up": (-1, 0),
+    "Down": (1, 0),
+    "Left": (0, -1),
+    "Right": (0, 1)
+}
+
+action_list = list(actions.keys())
+
+gamma = 0.9
+battery_capacity = 30
+max_moves = 25
+
+def valid_position(position):
+    r, c = position
+    return (
+        0 <= r < grid_size and
+        0 <= c < grid_size and
+        position not in obstacles
+    )
+
+def move(position, action):
+    dr, dc = actions[action]
+    new_position = (position[0] + dr, position[1] + dc)
+
+    if valid_position(new_position):
+        return new_position
+    return position
+
+def get_reward(current, next_position):
+    if next_position == goal:
+        return 100
+
+    if next_position == current:
+        return -10
+
+    return -1
+
+states = []
+
+for r in range(grid_size):
+    for c in range(grid_size):
+        if (r, c) not in obstacles:
+            states.append((r, c))
+
+V = {state: 0 for state in states}
+
+for iteration in range(1000):
+    new_V = V.copy()
+    delta = 0
+
+    for state in states:
+        if state == goal:
+            new_V[state] = 0
+            continue
+
+        action_values = []
+
+        for action in action_list:
+            intended_position = move(state, action)
+
+            other_actions = [a for a in action_list if a != action]
+            random_action = random.choice(other_actions)
+
+            random_position = move(state, random_action)
+
+            expected_value = (
+                0.8 * (
+                    get_reward(state, intended_position)
+                    + gamma * V[intended_position]
+                )
+                +
+                0.2 * (
+                    get_reward(state, random_position)
+                    + gamma * V[random_position]
+                )
+            )
+
+            action_values.append(expected_value)
+
+        new_V[state] = max(action_values)
+        delta = max(delta, abs(new_V[state] - V[state]))
+
+    V = new_V
+
+    if delta < 0.001:
+        break
+
+policy = {}
+
+for state in states:
+    if state == goal:
+        continue
+
+    best_action = None
+    best_value = float("-inf")
+
+    for action in action_list:
+        intended_position = move(state, action)
+
+        other_actions = [a for a in action_list if a != action]
+        random_action = random.choice(other_actions)
+        random_position = move(state, random_action)
+
+        expected_value = (
+            0.8 * (
+                get_reward(state, intended_position)
+                + gamma * V[intended_position]
+            )
+            +
+            0.2 * (
+                get_reward(state, random_position)
+                + gamma * V[random_position]
+            )
+        )
+
+        if expected_value > best_value:
+            best_value = expected_value
+            best_action = action
+
+    policy[state] = best_action
+
+print("Value Iteration completed")
+print("Number of iterations:", iteration + 1)
+print()
+
+print("Optimal Policy:")
+for r in range(grid_size):
+    row = []
+    for c in range(grid_size):
+        state = (r, c)
+
+        if state in obstacles:
+            row.append(" X ")
+        elif state == start:
+            row.append(" S ")
+        elif state == goal:
+            row.append(" G ")
+        else:
+            symbols = {
+                "Up": " ↑ ",
+                "Down": " ↓ ",
+                "Left": " ← ",
+                "Right": " → "
+            }
+            row.append(symbols[policy[state]])
+
+    print("".join(row))
+
+def epsilon_greedy_action(state, epsilon):
+    if random.random() < epsilon:
+        return random.choice(action_list)
+
+    return policy[state]
+
+epsilon = 0.1
+
+current = start
+path = [current]
+total_reward = 0
+moves = 0
+battery = battery_capacity
+
+while current != goal and moves < max_moves and battery > 0:
+
+    action = epsilon_greedy_action(current, epsilon)
+
+    if random.random() < 0.8:
+        actual_action = action
+    else:
+        actual_action = random.choice(action_list)
+
+    next_position = move(current, actual_action)
+
+    reward = get_reward(current, next_position)
+
+    total_reward += reward
+    moves += 1
+    battery -= 1
+
+    current = next_position
+    path.append(current)
+
+print()
+print("Robot Simulation")
+print("------------------------")
+print("Start:", start)
+print("Goal:", goal)
+print("Path:", path)
+print("Total Moves:", moves)
+print("Battery Used:", battery_capacity - battery)
+print("Remaining Battery:", battery)
+print("Total Reward:", total_reward)
+
+if current == goal:
+    print("Status: Destination Reached")
+elif battery <= 0:
+    print("Status: Battery Exhausted")
+else:
+    print("Status: Maximum Move Limit Reached")
+
+plt.figure(figsize=(8, 8))
+
+for r in range(grid_size):
+    for c in range(grid_size):
+
+        if (r, c) in obstacles:
+            plt.fill_between(
+                [c, c + 1],
+                r,
+                r + 1,
+                alpha=0.8
+            )
+
+        elif (r, c) == start:
+            plt.fill_between(
+                [c, c + 1],
+                r,
+                r + 1,
+                alpha=0.5
+            )
+
+        elif (r, c) == goal:
+            plt.fill_between(
+                [c, c + 1],
+                r,
+                r + 1,
+                alpha=0.5
+            )
+
+for i in range(len(path) - 1):
+    r1, c1 = path[i]
+    r2, c2 = path[i + 1]
+
+    plt.arrow(
+        c1 + 0.5,
+        r1 + 0.5,
+        c2 - c1,
+        r2 - r1,
+        head_width=0.15,
+        length_includes_head=True
+    )
+
+plt.text(
+    start[1] + 0.5,
+    start[0] + 0.5,
+    "START",
+    ha="center",
+    va="center"
+)
+
+plt.text(
+    goal[1] + 0.5,
+    goal[0] + 0.5,
+    "GOAL",
+    ha="center",
+    va="center"
+)
+
+for obstacle in obstacles:
+    r, c = obstacle
+    plt.text(
+        c + 0.5,
+        r + 0.5,
+        "X",
+        ha="center",
+        va="center"
+    )
+
+plt.xlim(0, grid_size)
+plt.ylim(grid_size, 0)
+plt.xticks(range(grid_size + 1))
+plt.yticks(range(grid_size + 1))
+plt.grid(True)
+plt.title("Warehouse Robot Navigation using Value Iteration")
+plt.xlabel("Column")
+plt.ylabel("Row")
+plt.show()
