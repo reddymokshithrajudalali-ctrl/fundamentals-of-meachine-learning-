@@ -1,0 +1,126 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+np.random.seed(42)
+
+num_ads = 5
+num_interactions = 10000
+
+true_click_probabilities = np.array([0.05, 0.10, 0.15, 0.08, 0.12])
+
+counts = np.zeros(num_ads)
+rewards = np.zeros(num_ads)
+
+total_rewards = 0
+cumulative_rewards = []
+cumulative_regret = []
+
+best_probability = np.max(true_click_probabilities)
+
+for t in range(num_interactions):
+
+    if t < num_ads:
+        selected_ad = t
+    else:
+        average_rewards = rewards / counts
+        exploration_term = np.sqrt((2 * np.log(t + 1)) / counts)
+        ucb_values = average_rewards + exploration_term
+        selected_ad = np.argmax(ucb_values)
+
+    click = np.random.random() < true_click_probabilities[selected_ad]
+
+    reward = int(click)
+
+    counts[selected_ad] += 1
+    rewards[selected_ad] += reward
+
+    total_rewards += reward
+
+    cumulative_rewards.append(total_rewards)
+
+    expected_best_reward = (t + 1) * best_probability
+    regret = expected_best_reward - total_rewards
+    cumulative_regret.append(regret)
+
+estimated_ctr = rewards / counts
+
+print("MULTI-ARMED BANDIT USING UCB")
+print("--------------------------------")
+print("Number of Advertisements:", num_ads)
+print("Total User Interactions:", num_interactions)
+print()
+
+for i in range(num_ads):
+    print("Advertisement", i + 1)
+    print("Times Displayed:", int(counts[i]))
+    print("Clicks:", int(rewards[i]))
+    print("Estimated CTR:", round(estimated_ctr[i] * 100, 2), "%")
+    print()
+
+best_ad = np.argmax(estimated_ctr)
+
+print("--------------------------------")
+print("Best Advertisement:", best_ad + 1)
+print("Best Estimated CTR:", round(estimated_ctr[best_ad] * 100, 2), "%")
+print("Total Clicks:", int(total_rewards))
+print("Total CTR:", round((total_rewards / num_interactions) * 100, 2), "%")
+print("Final Cumulative Regret:", round(cumulative_regret[-1], 2))
+
+plt.figure(figsize=(10, 5))
+
+plt.bar(
+    range(1, num_ads + 1),
+    true_click_probabilities * 100
+)
+
+plt.xlabel("Advertisement")
+plt.ylabel("True Click Probability (%)")
+plt.title("True Click Probability of Each Advertisement")
+plt.xticks(range(1, num_ads + 1))
+plt.show()
+
+plt.figure(figsize=(10, 5))
+
+plt.bar(
+    range(1, num_ads + 1),
+    estimated_ctr * 100
+)
+
+plt.xlabel("Advertisement")
+plt.ylabel("Estimated CTR (%)")
+plt.title("Estimated CTR After 10,000 Interactions")
+plt.xticks(range(1, num_ads + 1))
+plt.show()
+
+plt.figure(figsize=(10, 5))
+
+plt.bar(
+    range(1, num_ads + 1),
+    counts
+)
+
+plt.xlabel("Advertisement")
+plt.ylabel("Number of Times Displayed")
+plt.title("Advertisement Selection Frequency")
+plt.xticks(range(1, num_ads + 1))
+plt.show()
+
+plt.figure(figsize=(10, 5))
+
+plt.plot(cumulative_rewards)
+
+plt.xlabel("User Interactions")
+plt.ylabel("Cumulative Clicks")
+plt.title("Cumulative Reward Over 10,000 Interactions")
+plt.grid(True)
+plt.show()
+
+plt.figure(figsize=(10, 5))
+
+plt.plot(cumulative_regret)
+
+plt.xlabel("User Interactions")
+plt.ylabel("Cumulative Regret")
+plt.title("Cumulative Regret Using UCB")
+plt.grid(True)
+plt.show()
