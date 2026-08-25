@@ -1,0 +1,200 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+
+np.random.seed(42)
+
+n_samples = 1000000
+
+age = np.random.randint(18, 81, n_samples)
+blood_pressure = np.random.normal(120, 20, n_samples)
+cholesterol = np.random.normal(200, 40, n_samples)
+glucose = np.random.normal(100, 25, n_samples)
+bmi = np.random.normal(25, 5, n_samples)
+heart_rate = np.random.normal(75, 12, n_samples)
+
+risk_score = (
+    0.025 * (age - 40)
+    + 0.025 * (blood_pressure - 120)
+    + 0.015 * (cholesterol - 200)
+    + 0.035 * (glucose - 100)
+    + 0.08 * (bmi - 25)
+    + 0.01 * (heart_rate - 75)
+)
+
+probability = 1 / (1 + np.exp(-risk_score))
+
+disease = np.random.binomial(1, probability)
+
+data = pd.DataFrame({
+    "Age": age,
+    "BloodPressure": blood_pressure,
+    "Cholesterol": cholesterol,
+    "Glucose": glucose,
+    "BMI": bmi,
+    "HeartRate": heart_rate,
+    "Disease": disease
+})
+
+print("Original Dataset Size:", len(data))
+print()
+print("Original Disease Distribution:")
+print(data["Disease"].value_counts())
+print()
+print("Original Disease Percentage:")
+print(data["Disease"].value_counts(normalize=True) * 100)
+
+sample_size = 100000
+
+sample, remaining = train_test_split(
+    data,
+    train_size=sample_size,
+    stratify=data["Disease"],
+    random_state=42
+)
+
+print()
+print("Stratified Sample Size:", len(sample))
+print()
+print("Sample Disease Distribution:")
+print(sample["Disease"].value_counts())
+print()
+print("Sample Disease Percentage:")
+print(sample["Disease"].value_counts(normalize=True) * 100)
+
+X = sample.drop("Disease", axis=1)
+y = sample["Disease"]
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.20,
+    stratify=y,
+    random_state=42
+)
+
+model = Pipeline([
+    ("scaler", StandardScaler()),
+    ("classifier", RandomForestClassifier(
+        n_estimators=100,
+        max_depth=12,
+        random_state=42,
+        n_jobs=-1
+    ))
+])
+
+model.fit(X_train, y_train)
+
+y_pred = model.predict(X_test)
+y_probability = model.predict_proba(X_test)
+
+accuracy = accuracy_score(y_test, y_pred)
+
+confidence = np.max(y_probability, axis=1)
+average_confidence = np.mean(confidence)
+
+high_confidence_predictions = confidence >= 0.95
+high_confidence_accuracy = accuracy_score(
+    y_test[high_confidence_predictions],
+    y_pred[high_confidence_predictions]
+)
+
+print()
+print("------------------------------------------")
+print("MODEL PERFORMANCE")
+print("------------------------------------------")
+print("Training Records:", len(X_train))
+print("Testing Records:", len(X_test))
+print("Accuracy:", round(accuracy * 100, 2), "%")
+print("Average Model Confidence:", round(average_confidence * 100, 2), "%")
+print(
+    "Predictions with >= 95% Confidence:",
+    round(np.mean(high_confidence_predictions) * 100, 2),
+    "%"
+)
+
+if high_confidence_predictions.sum() > 0:
+    print(
+        "Accuracy of >= 95% Confidence Predictions:",
+        round(high_confidence_accuracy * 100, 2),
+        "%"
+    )
+
+print()
+print("Classification Report:")
+print(classification_report(y_test, y_pred))
+
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+
+if accuracy >= 0.95:
+    print()
+    print("Accuracy Requirement: PASSED")
+else:
+    print()
+    print("Accuracy Requirement: NOT PASSED")
+
+if average_confidence >= 0.95:
+    print("Confidence Requirement: PASSED")
+else:
+    print("Confidence Requirement: NOT PASSED")
+
+print()
+print("Sample Complexity Analysis")
+print("------------------------------------------")
+
+feature_count = X.shape[1]
+sample_complexity_ratio = len(sample) / n_samples
+
+print("Total Dataset Records:", n_samples)
+print("Selected Sample Records:", len(sample))
+print("Sampling Ratio:", round(sample_complexity_ratio * 100, 2), "%")
+print("Number of Features:", feature_count)
+
+plt.figure(figsize=(8, 5))
+
+data["Disease"].value_counts().sort_index().plot(
+    kind="bar"
+)
+
+plt.title("Disease Distribution in Original Dataset")
+plt.xlabel("Disease Class")
+plt.ylabel("Number of Patients")
+plt.xticks([0, 1], ["No Disease", "Disease"], rotation=0)
+plt.show()
+
+plt.figure(figsize=(8, 5))
+
+sample["Disease"].value_counts().sort_index().plot(
+    kind="bar"
+)
+
+plt.title("Disease Distribution in Stratified Sample")
+plt.xlabel("Disease Class")
+plt.ylabel("Number of Patients")
+plt.xticks([0, 1], ["No Disease", "Disease"], rotation=0)
+plt.show()
+
+plt.figure(figsize=(8, 5))
+
+plt.bar(
+    ["Accuracy", "Average Confidence"],
+    [accuracy * 100, average_confidence * 100]
+)
+
+plt.axhline(
+    y=95,
+    linestyle="--",
+    label="Required 95%"
+)
+
+plt.ylabel("Percentage")
+plt.title("Accuracy and Confidence")
+plt.legend()
+plt.show()
