@@ -1,0 +1,124 @@
+import numpy as np
+
+grid = [
+    ["S", ".", ".", "."],
+    [".", "#", ".", "."],
+    [".", ".", "#", "."],
+    [".", ".", ".", "G"]
+]
+
+rows = len(grid)
+cols = len(grid[0])
+
+actions = {
+    "U": (-1, 0),
+    "D": (1, 0),
+    "L": (0, -1),
+    "R": (0, 1)
+}
+
+gamma = 0.9
+threshold = 0.001
+
+values = np.zeros((rows, cols))
+
+for i in range(rows):
+    for j in range(cols):
+        if grid[i][j] == "G":
+            values[i][j] = 10
+        elif grid[i][j] == "#":
+            values[i][j] = 0
+
+while True:
+    new_values = values.copy()
+    delta = 0
+
+    for i in range(rows):
+        for j in range(cols):
+
+            if grid[i][j] == "#" or grid[i][j] == "G":
+                continue
+
+            action_values = []
+
+            for action, (di, dj) in actions.items():
+
+                ni = i + di
+                nj = j + dj
+
+                if ni < 0 or ni >= rows or nj < 0 or nj >= cols:
+                    reward = -1
+                    ni, nj = i, j
+
+                elif grid[ni][nj] == "#":
+                    reward = -5
+                    ni, nj = i, j
+
+                elif grid[ni][nj] == "G":
+                    reward = 10
+
+                else:
+                    reward = -1
+
+                action_value = reward + gamma * values[ni][nj]
+                action_values.append(action_value)
+
+            new_values[i][j] = max(action_values)
+
+            delta = max(delta, abs(new_values[i][j] - values[i][j]))
+
+    values = new_values
+
+    if delta < threshold:
+        break
+
+policy = [["" for j in range(cols)] for i in range(rows)]
+
+for i in range(rows):
+    for j in range(cols):
+
+        if grid[i][j] == "#":
+            policy[i][j] = "#"
+            continue
+
+        if grid[i][j] == "G":
+            policy[i][j] = "G"
+            continue
+
+        best_action = None
+        best_value = float("-inf")
+
+        for action, (di, dj) in actions.items():
+
+            ni = i + di
+            nj = j + dj
+
+            if ni < 0 or ni >= rows or nj < 0 or nj >= cols:
+                reward = -1
+                ni, nj = i, j
+
+            elif grid[ni][nj] == "#":
+                reward = -5
+                ni, nj = i, j
+
+            elif grid[ni][nj] == "G":
+                reward = 10
+
+            else:
+                reward = -1
+
+            action_value = reward + gamma * values[ni][nj]
+
+            if action_value > best_value:
+                best_value = action_value
+                best_action = action
+
+        policy[i][j] = best_action
+
+print("Optimal Value Function:")
+print(np.round(values, 2))
+
+print("\nOptimal Policy:")
+
+for row in policy:
+    print(row)
