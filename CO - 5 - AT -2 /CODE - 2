@@ -1,0 +1,51 @@
+import random
+
+movies = ["Movie A", "Movie B", "Movie C", "Movie D", "Movie E"]
+
+true_rewards = {
+    "Movie A": 0.30,
+    "Movie B": 0.50,
+    "Movie C": 0.70,
+    "Movie D": 0.40,
+    "Movie E": 0.60
+}
+
+reward_estimates = {movie: 0 for movie in movies}
+movie_counts = {movie: 0 for movie in movies}
+
+epsilon = 0.1
+num_interactions = 10000
+
+for i in range(num_interactions):
+
+    if random.random() < epsilon:
+        selected_movie = random.choice(movies)
+    else:
+        selected_movie = max(movies, key=lambda movie: reward_estimates[movie])
+
+    if random.random() < true_rewards[selected_movie]:
+        reward = 1
+    else:
+        reward = 0
+
+    movie_counts[selected_movie] += 1
+
+    count = movie_counts[selected_movie]
+
+    reward_estimates[selected_movie] = (
+        reward_estimates[selected_movie] +
+        (reward - reward_estimates[selected_movie]) / count
+    )
+
+best_movie = max(movies, key=lambda movie: reward_estimates[movie])
+
+print("Movie Reward Estimates:")
+for movie in movies:
+    print(movie, ":", round(reward_estimates[movie], 4))
+
+print("\nMovie Selection Counts:")
+for movie in movies:
+    print(movie, ":", movie_counts[movie])
+
+print("\nMovie with Highest Expected Reward:", best_movie)
+print("Highest Expected Reward:", round(reward_estimates[best_movie], 4))
