@@ -1,0 +1,28 @@
+import random
+
+num_simulations = 10000
+on_time_count = 0
+
+for i in range(num_simulations):
+
+    traffic_condition = random.choice(["Low", "Medium", "High"])
+
+    if traffic_condition == "Low":
+        on_time_probability = 0.90
+    elif traffic_condition == "Medium":
+        on_time_probability = 0.70
+    else:
+        on_time_probability = 0.40
+
+    random_value = random.random()
+
+    if random_value < on_time_probability:
+        on_time_count += 1
+
+estimated_probability = on_time_count / num_simulations
+
+print("Number of simulations:", num_simulations)
+print("On-time deliveries:", on_time_count)
+print("Late deliveries:", num_simulations - on_time_count)
+print("Estimated probability of on-time delivery:", round(estimated_probability, 4))
+print("Estimated probability (%):", round(estimated_probability * 100, 2), "%")
